@@ -1,0 +1,43 @@
+﻿{
+    "mapping":  [
+                    {
+                        "b":  "?섎굹?섏쓽 二쇨텒???묒젙",
+                        "a":  "?낆쓽 ?섏닔猿섎겮/?쇰룉",
+                        "aspect":  "怨좊궃???먯씤"
+                    },
+                    {
+                        "b":  "?좊ː? 李ъ뼇(Trusting)",
+                        "a":  "鍮꾪깂(Lamenting)",
+                        "aspect":  "???諛⑹떇"
+                    },
+                    {
+                        "b":  "媛쒖씤???곕떒 (?곴킅)",
+                        "a":  "怨듬룞泥댁쓽 ?꾩떇 (?깅졊)",
+                        "aspect":  "?깃꼍??以묒떖"
+                    }
+                ],
+    "timestamp":  "2026-02-02 01:21:38",
+    "scholar_data":  [
+                         {
+                             "thesis":  "怨좊궃? ?낆쓽 ?좊퉬?대ŉ, ?섎굹?섏? 鍮꾪깂(Lament)???듯빐 ??怨좏넻???숈갭?섏떊??",
+                             "scholar":  "N.T. Wright",
+                             "citations":  [
+                                               "Romans 8:22",
+                                               "Psalms of Lament"
+                                           ],
+                             "novelty":  "怨좊궃???됱쐞??寃곌낵(?멸낵?묐낫)濡?蹂댁? ?딄퀬, ?껋뼱踰꾨┛ \u0027鍮꾪깂???덉쟾\u0027???뚮났??寃껋쓣 二쇱옣.",
+                             "school":  "New Perspective / New Creation"
+                         },
+                         {
+                             "thesis":  "怨좊궃? ?섎굹?섏쓽 二쇨텒???곴킅???꾪븳 ?꾧뎄?대ŉ, 紐⑤뱺 怨좏넻?먮뒗 ?몄떖??紐⑹쟻???덈떎.",
+                             "scholar":  "John Piper",
+                             "citations":  [
+                                               "Romans 5:3",
+                                               "Job 1:21"
+                                           ],
+                             "novelty":  "?꾪넻????━濡좎쓣 媛뺥솕. 紐⑤뱺 怨좏넻??洹몃━?ㅻ룄??媛移섎? 諛쒓껄?섎뒗 \u0027湲곕룆援먯쟻 ?щ씫二쇱쓽\u0027濡??곌껐.",
+                             "school":  "Reformed / Sovereign Grace"
+                         }
+                     ],
+    "topic":  "Suffering"
+}

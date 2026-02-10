@@ -1,0 +1,21 @@
+# Git Ignore for Antigravity Project
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Large generated artifacts (Optional: remove if you want to sync these)
+# *.epub
+
+# Local environment / secrets
+.env
+.agent/
+.gemini/

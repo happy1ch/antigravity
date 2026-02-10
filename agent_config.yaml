@@ -1,0 +1,24 @@
+# NotebookLM Agent Configuration
+# Replace "INSERT_ID_HERE" with the actual Notebook ID from your NotebookLM URL.
+# Example URL: https://notebooklm.google.com/notebook/1234abcd-5678-efgh
+# ID is: 1234abcd-5678-efgh
+
+agents:
+  linguist:
+    name: "Linguist Agent (Hebrew/Greek)"
+    notebook_id: "04f3cca4-053b-4125-baca-1a8e6a1818e8"
+    description: "Focus on original language semantics, syntax, and lexical nuances."
+  
+  theologian:
+    name: "Reformed Theologian Agent"
+    notebook_id: "f4853591-15a7-41ca-9f50-9450d4c1e34f"
+    description: "Focus on systematic theology, Calvinist doctrines, and confessional standards."
+
+  historian:
+    name: "ANE Historian Agent"
+    notebook_id: "f6341ad2-7d49-44ac-804d-1a7231e6868d"
+    description: "Focus on Ancient Near East culture, geography, and archaeological context."
+
+output:
+  directory: "./research_output"
+  filename_pattern: "report_{topic}.txt"

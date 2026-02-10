@@ -1,0 +1,40 @@
+﻿[
+    {
+        "value":  [
+                      {
+                          "value":  [
+                                        {
+                                            "value":  [
+                                                          "@{value=System.Object[]; Count=2}",
+                                                          "@{school=새 창조 신학 (New Creation); timestamp=2026-02-02; channel=N.T. Wright Online; thesis=악은 설명해야 할 철학적 문제가 아니라, 승리해야 할 실체다. 부활이 그 대답이다.; topic=The Problem of Evil}"
+                                                      ],
+                                            "Count":  2
+                                        },
+                                        {
+                                            "school":  null,
+                                            "timestamp":  "2026-02-02",
+                                            "channel":  "Biola CCT",
+                                            "thesis":  null,
+                                            "topic":  "The Problem of Evil"
+                                        }
+                                    ],
+                          "Count":  2
+                      },
+                      {
+                          "school":  "새 창조 신학 (New Creation)",
+                          "timestamp":  "2026-02-02",
+                          "channel":  "N.T. Wright Online",
+                          "thesis":  "악은 설명해야 할 철학적 문제가 아니라, 승리해야 할 실체다. 부활이 그 대답이다.",
+                          "topic":  "The Problem of Evil"
+                      }
+                  ],
+        "Count":  2
+    },
+    {
+        "school":  null,
+        "timestamp":  "2026-02-02",
+        "channel":  "Biola CCT",
+        "thesis":  null,
+        "topic":  "The Problem of Evil"
+    }
+]
