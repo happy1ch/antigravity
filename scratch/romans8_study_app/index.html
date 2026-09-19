@@ -9,7 +9,6 @@
 <body>
 
   <div class="app-container">
-    <!-- Header -->
     <header>
       <div class="header-top">
         <div class="brand-title">
@@ -35,7 +34,6 @@
       </div>
     </header>
 
-    <!-- Stepper Navigation -->
     <nav class="stepper-nav">
       <button class="step-item active" id="step1Btn">
         <span class="step-num">1</span>
@@ -55,7 +53,6 @@
       </button>
     </nav>
 
-    <!-- Main Learning Card -->
     <main class="main-card">
       <div class="verse-header">
         <div class="verse-tag">
@@ -66,7 +63,6 @@
         </div>
       </div>
 
-      <!-- Verse Display Box -->
       <div class="text-display-box">
         <div class="english-text" id="englishText">
           Loading verse...
@@ -76,7 +72,6 @@
         </div>
       </div>
 
-      <!-- Microphone Meter (Showing during Step 2 / Recording) -->
       <div id="micMeterContainer" class="mic-meter-container" style="display: none;">
         <span class="mic-icon">🎤</span>
         <div class="meter-bar-bg">
@@ -85,25 +80,17 @@
         <span id="micVolText" class="vol-text">0%</span>
       </div>
 
-      <!-- Action Controls -->
       <div class="control-panel">
         <div class="action-buttons">
-          <!-- Step 1 & 4: TTS Play -->
           <button id="playTtsBtn" class="btn btn-primary">
             🔊 원어민 음성 듣기
           </button>
-
-          <!-- Step 2: Record -->
           <button id="recordBtn" class="btn btn-record" style="display: none;">
             🎙️ 낭독 녹음 시작
           </button>
-
-          <!-- Step 3: Play User Recording -->
           <button id="playRecordBtn" class="btn btn-secondary" style="display: none;" disabled>
             ▶️ 내 녹음 듣기
           </button>
-
-          <!-- Step 4: Complete & Move Next -->
           <button id="completeStepBtn" class="btn btn-success" style="display: none;">
             ✅ 학습 완료 & 다음 절 이동
           </button>
@@ -124,7 +111,6 @@
       </div>
     </main>
 
-    <!-- Footer Nav -->
     <footer class="nav-footer">
       <button id="prevVerseBtn" class="nav-btn" disabled>◀ 이전 절</button>
       <button id="nextVerseBtn" class="nav-btn">다음 절 ▶</button>

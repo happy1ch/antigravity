@@ -1,22 +1,29 @@
 // Romans 8 NIV English Learning App - Mobile & Desktop Fully Compatible
 
 let currentIndex = 0;
-let currentStep = 1;
+let currentStep = 1; // 1, 2, 3, 4
 let showKorean = true;
 let completedVerses = new Set(JSON.parse(localStorage.getItem('romans8_completed') || '[]'));
 
+// Audio & Recording State
 let mediaRecorder = null;
 let audioChunks = [];
-let recordedAudioUrls = {};
+let recordedAudioUrls = {}; // verseIndex -> blobUrl
 let isRecording = false;
 let recordedAudio = null;
 let recordTimerInterval = null;
 let recordSeconds = 0;
 
+// Mic Meter State
 let meterAudioCtx = null;
 let meterAnalyser = null;
 let meterAnimFrame = null;
 
+// Global Utterance reference to prevent Mobile JS Garbage Collection
+window.currentUtterance = null;
+let silentAudioCtx = null;
+
+// DOM Elements
 const verseSelect = document.getElementById('verseSelect');
 const toggleKorBtn = document.getElementById('toggleKorBtn');
 const korStatusText = document.getElementById('korStatusText');
@@ -49,12 +56,41 @@ const speedSelect = document.getElementById('speedSelect');
 const prevVerseBtn = document.getElementById('prevVerseBtn');
 const nextVerseBtn = document.getElementById('nextVerseBtn');
 
+// App Initialization
 function init() {
   populateVerseSelect();
   renderVerse(0);
   updateProgress();
   setupEventListeners();
   preloadSpeechVoices();
+  setupMobileAudioUnlock();
+}
+
+// Unlock Mobile Audio Session (iOS Safari & Android Chrome)
+function setupMobileAudioUnlock() {
+  const unlock = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.resume();
+    }
+    try {
+      if (!silentAudioCtx) {
+        silentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (silentAudioCtx.state === 'suspended') {
+        silentAudioCtx.resume();
+      }
+      const buffer = silentAudioCtx.createBuffer(1, 1, 22050);
+      const source = silentAudioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(silentAudioCtx.destination);
+      source.start(0);
+    } catch (e) {
+      console.warn("Audio unlock note:", e);
+    }
+  };
+
+  document.addEventListener('touchstart', unlock, { once: false });
+  document.addEventListener('click', unlock, { once: false });
 }
 
 function preloadSpeechVoices() {
@@ -72,8 +108,12 @@ function unlockMobileAudio() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.resume();
   }
+  if (silentAudioCtx && silentAudioCtx.state === 'suspended') {
+    silentAudioCtx.resume();
+  }
 }
 
+// Populate Verse Selector
 function populateVerseSelect() {
   verseSelect.innerHTML = '';
   romans8Verses.forEach((item, idx) => {
@@ -85,6 +125,7 @@ function populateVerseSelect() {
   });
 }
 
+// Render Current Verse
 function renderVerse(index) {
   currentIndex = index;
   const data = romans8Verses[currentIndex];
@@ -100,9 +141,11 @@ function renderVerse(index) {
   setStep(1);
 }
 
+// Step Controller (Step 1 ~ 4)
 function setStep(stepNum) {
   currentStep = stepNum;
 
+  // Stepper Visual Accent
   stepBtns.forEach((btn, i) => {
     btn.classList.toggle('active', i + 1 === currentStep);
   });
@@ -110,6 +153,7 @@ function setStep(stepNum) {
   englishText.classList.remove('reading-mode');
   micMeterContainer.style.display = 'none';
 
+  // Button Visibility Controls
   playTtsBtn.style.display = 'none';
   recordBtn.style.display = 'none';
   playRecordBtn.style.display = 'none';
@@ -174,6 +218,7 @@ function formatTime(sec) {
   return `${m}:${s}`;
 }
 
+// 1. Mobile & Desktop Native TTS Speech Synthesis
 function playTts() {
   unlockMobileAudio();
 
@@ -182,41 +227,61 @@ function playTts() {
     return;
   }
 
-  window.speechSynthesis.cancel();
-
   const data = romans8Verses[currentIndex];
-  const utterance = new SpeechSynthesisUtterance(data.text);
-  utterance.lang = 'en-US';
-  utterance.rate = parseFloat(speedSelect.value);
+  setAudioStatus('🔊 원어민 음성 낭독 중...');
+  playTtsBtn.disabled = true;
 
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
-  if (enVoice) utterance.voice = enVoice;
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
 
-  utterance.onstart = () => {
-    setAudioStatus('🔊 원어민 음성 낭독 중...');
-    playTtsBtn.disabled = true;
-  };
+    // Store in window.currentUtterance to prevent Mobile JS Garbage Collection mid-speech
+    window.currentUtterance = new SpeechSynthesisUtterance(data.text);
+    window.currentUtterance.lang = 'en-US';
+    window.currentUtterance.volume = 1.0;
+    window.currentUtterance.pitch = 1.0;
+    window.currentUtterance.rate = parseFloat(speedSelect.value) || 1.0;
 
-  utterance.onend = () => {
-    setAudioStatus('원어민 재생 완료');
-    playTtsBtn.disabled = false;
-    if (currentStep === 1) {
-      setTimeout(() => setStep(2), 400);
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      const enVoice = voices.find(v => (v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en')) && v.localService) ||
+                      voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
+      if (enVoice) {
+        window.currentUtterance.voice = enVoice;
+      }
     }
-  };
 
-  utterance.onerror = (e) => {
-    console.error("TTS Error:", e);
-    setAudioStatus('원어민 재생 완료');
+    window.currentUtterance.onstart = () => {
+      setAudioStatus('🔊 원어민 음성 낭독 중...');
+    };
+
+    window.currentUtterance.onend = () => {
+      setAudioStatus('원어민 재생 완료');
+      playTtsBtn.disabled = false;
+      if (currentStep === 1) {
+        setTimeout(() => setStep(2), 400);
+      }
+    };
+
+    window.currentUtterance.onerror = (e) => {
+      console.warn("TTS Error event:", e);
+      setAudioStatus('원어민 재생 완료');
+      playTtsBtn.disabled = false;
+    };
+
+    setTimeout(() => {
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(window.currentUtterance);
+    }, 100);
+
+  } catch (err) {
+    console.error("TTS Exception:", err);
+    setAudioStatus('재생 처리 중');
     playTtsBtn.disabled = false;
-  };
-
-  setTimeout(() => {
-    window.speechSynthesis.speak(utterance);
-  }, 50);
+  }
 }
 
+// Real-time Mic Meter (Mobile & Desktop)
 async function startMicMeter(stream) {
   stopMicMeter();
   try {
@@ -265,6 +330,7 @@ function stopMicMeter() {
   micVolText.textContent = '0%';
 }
 
+// 2. Microphone Recording
 async function toggleRecording() {
   unlockMobileAudio();
 
@@ -327,7 +393,7 @@ async function toggleRecording() {
       setStep(2);
 
     } catch (err) {
-      alert('마이크 접근에 실패했거나 권한이 차단되었습니다.');
+      alert('마이크 접근에 실패했거나 권한이 차단되었습니다. 주소창 권한 설정을 확인하세요.');
       console.error(err);
       setAudioStatus('마이크 연결 실패');
     }
@@ -340,6 +406,7 @@ async function toggleRecording() {
   }
 }
 
+// 3. Play User Recording
 function playUserRecording() {
   unlockMobileAudio();
 
@@ -380,6 +447,7 @@ function playUserRecording() {
   });
 }
 
+// Complete Verse & Move to Next Verse
 function completeCurrentVerse() {
   const verseNum = romans8Verses[currentIndex].verse;
   completedVerses.add(verseNum);
@@ -395,6 +463,7 @@ function completeCurrentVerse() {
   }
 }
 
+// Update Progress Bar
 function updateProgress() {
   const count = completedVerses.size;
   const percent = Math.round((count / romans8Verses.length) * 100);
@@ -402,6 +471,7 @@ function updateProgress() {
   progressBarFill.style.width = `${percent}%`;
 }
 
+// Setup Event Listeners
 function setupEventListeners() {
   verseSelect.addEventListener('change', (e) => {
     renderVerse(parseInt(e.target.value));
@@ -434,4 +504,5 @@ function setupEventListeners() {
   });
 }
 
+// Launch App
 document.addEventListener('DOMContentLoaded', init);

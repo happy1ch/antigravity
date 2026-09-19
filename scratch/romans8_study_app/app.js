@@ -17,8 +17,11 @@ let recordSeconds = 0;
 // Mic Meter State
 let meterAudioCtx = null;
 let meterAnalyser = null;
-let meterStream = null;
 let meterAnimFrame = null;
+
+// Global Utterance reference to prevent Mobile JS Garbage Collection
+window.currentUtterance = null;
+let silentAudioCtx = null;
 
 // DOM Elements
 const verseSelect = document.getElementById('verseSelect');
@@ -60,9 +63,36 @@ function init() {
   updateProgress();
   setupEventListeners();
   preloadSpeechVoices();
+  setupMobileAudioUnlock();
 }
 
-// Ensure Mobile Speech Synthesis Voices Load
+// Unlock Mobile Audio Session (iOS Safari & Android Chrome)
+function setupMobileAudioUnlock() {
+  const unlock = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.resume();
+    }
+    try {
+      if (!silentAudioCtx) {
+        silentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (silentAudioCtx.state === 'suspended') {
+        silentAudioCtx.resume();
+      }
+      const buffer = silentAudioCtx.createBuffer(1, 1, 22050);
+      const source = silentAudioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(silentAudioCtx.destination);
+      source.start(0);
+    } catch (e) {
+      console.warn("Audio unlock note:", e);
+    }
+  };
+
+  document.addEventListener('touchstart', unlock, { once: false });
+  document.addEventListener('click', unlock, { once: false });
+}
+
 function preloadSpeechVoices() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.getVoices();
@@ -74,10 +104,12 @@ function preloadSpeechVoices() {
   }
 }
 
-// Unlock Mobile Web Audio Context on User Gesture
 function unlockMobileAudio() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.resume();
+  }
+  if (silentAudioCtx && silentAudioCtx.state === 'suspended') {
+    silentAudioCtx.resume();
   }
 }
 
@@ -138,7 +170,7 @@ function setStep(stepNum) {
 
     case 2:
       stepInstruction.textContent = "Step 2: 큼직해진 문장을 읽으며 [🎙️ 낭독 녹음 시작]을 누르세요.";
-      englishText.classList.add('reading-mode'); // Big font focus for easy reading on mobile
+      englishText.classList.add('reading-mode');
       recordBtn.style.display = 'inline-flex';
       micMeterContainer.style.display = 'flex';
       
@@ -195,42 +227,58 @@ function playTts() {
     return;
   }
 
-  // Cancel previous speech for iOS Safari compatibility
-  window.speechSynthesis.cancel();
-
   const data = romans8Verses[currentIndex];
-  const utterance = new SpeechSynthesisUtterance(data.text);
-  utterance.lang = 'en-US';
-  utterance.rate = parseFloat(speedSelect.value);
+  setAudioStatus('🔊 원어민 음성 낭독 중...');
+  playTtsBtn.disabled = true;
 
-  // Search best English voice available
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
-  if (enVoice) utterance.voice = enVoice;
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
 
-  utterance.onstart = () => {
-    setAudioStatus('🔊 원어민 음성 낭독 중...');
-    playTtsBtn.disabled = true;
-  };
+    // Store in window.currentUtterance to prevent Mobile JS Garbage Collection mid-speech
+    window.currentUtterance = new SpeechSynthesisUtterance(data.text);
+    window.currentUtterance.lang = 'en-US';
+    window.currentUtterance.volume = 1.0;
+    window.currentUtterance.pitch = 1.0;
+    window.currentUtterance.rate = parseFloat(speedSelect.value) || 1.0;
 
-  utterance.onend = () => {
-    setAudioStatus('원어민 재생 완료');
-    playTtsBtn.disabled = false;
-    if (currentStep === 1) {
-      setTimeout(() => setStep(2), 400);
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      const enVoice = voices.find(v => (v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en')) && v.localService) ||
+                      voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
+      if (enVoice) {
+        window.currentUtterance.voice = enVoice;
+      }
     }
-  };
 
-  utterance.onerror = (e) => {
-    console.error("TTS Error:", e);
-    setAudioStatus('음성 재생 완료');
+    window.currentUtterance.onstart = () => {
+      setAudioStatus('🔊 원어민 음성 낭독 중...');
+    };
+
+    window.currentUtterance.onend = () => {
+      setAudioStatus('원어민 재생 완료');
+      playTtsBtn.disabled = false;
+      if (currentStep === 1) {
+        setTimeout(() => setStep(2), 400);
+      }
+    };
+
+    window.currentUtterance.onerror = (e) => {
+      console.warn("TTS Error event:", e);
+      setAudioStatus('원어민 재생 완료');
+      playTtsBtn.disabled = false;
+    };
+
+    setTimeout(() => {
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(window.currentUtterance);
+    }, 100);
+
+  } catch (err) {
+    console.error("TTS Exception:", err);
+    setAudioStatus('재생 처리 중');
     playTtsBtn.disabled = false;
-  };
-
-  // Small delay for iOS Safari speech trigger
-  setTimeout(() => {
-    window.speechSynthesis.speak(utterance);
-  }, 50);
+  }
 }
 
 // Real-time Mic Meter (Mobile & Desktop)
@@ -291,7 +339,6 @@ async function toggleRecording() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunks = [];
 
-      // Detect supported mimeType for iOS / Android
       let mimeType = '';
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
       else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
@@ -336,7 +383,6 @@ async function toggleRecording() {
       isRecording = true;
       recordSeconds = 0;
 
-      // Start live volume meter
       startMicMeter(stream);
 
       recordTimerInterval = setInterval(() => {
@@ -347,12 +393,11 @@ async function toggleRecording() {
       setStep(2);
 
     } catch (err) {
-      alert('마이크 접근에 실패했거나 모바일 브라우저 권한이 차단되었습니다. 주소창 권한 설정을 확인하세요.');
+      alert('마이크 접근에 실패했거나 권한이 차단되었습니다. 주소창 권한 설정을 확인하세요.');
       console.error(err);
       setAudioStatus('마이크 연결 실패');
     }
   } else {
-    // Stop recording
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
     }
