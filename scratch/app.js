@@ -177,28 +177,17 @@ function formatTime(sec) {
 function playTts() {
   unlockMobileAudio();
 
-  if (!('speechSynthesis' in window)) {
-    alert('이 브라우저는 원어민 음성 합성(TTS)을 지원하지 않습니다.');
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-
   const data = romans8Verses[currentIndex];
-  const utterance = new SpeechSynthesisUtterance(data.text);
-  utterance.lang = 'en-US';
-  utterance.rate = parseFloat(speedSelect.value);
+  setAudioStatus('🔊 원어민 음성 낭독 중...');
+  playTtsBtn.disabled = true;
 
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
-  if (enVoice) utterance.voice = enVoice;
+  const textEncoded = encodeURIComponent(data.text);
+  const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${textEncoded}`;
 
-  utterance.onstart = () => {
-    setAudioStatus('🔊 원어민 음성 낭독 중...');
-    playTtsBtn.disabled = true;
-  };
+  const audio = new Audio(audioUrl);
+  audio.playbackRate = parseFloat(speedSelect.value);
 
-  utterance.onend = () => {
+  audio.onended = () => {
     setAudioStatus('원어민 재생 완료');
     playTtsBtn.disabled = false;
     if (currentStep === 1) {
@@ -206,15 +195,47 @@ function playTts() {
     }
   };
 
-  utterance.onerror = (e) => {
-    console.error("TTS Error:", e);
-    setAudioStatus('원어민 재생 완료');
-    playTtsBtn.disabled = false;
+  const tryWebSpeech = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(data.text);
+      utterance.lang = 'en-US';
+      utterance.rate = parseFloat(speedSelect.value);
+
+      const voices = window.speechSynthesis.getVoices();
+      const enVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
+      if (enVoice) utterance.voice = enVoice;
+
+      utterance.onend = () => {
+        setAudioStatus('원어민 재생 완료');
+        playTtsBtn.disabled = false;
+        if (currentStep === 1) {
+          setTimeout(() => setStep(2), 400);
+        }
+      };
+
+      utterance.onerror = () => {
+        setAudioStatus('원어민 재생 완료');
+        playTtsBtn.disabled = false;
+      };
+
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 50);
+    } else {
+      setAudioStatus('원어민 재생 완료');
+      playTtsBtn.disabled = false;
+    }
   };
 
-  setTimeout(() => {
-    window.speechSynthesis.speak(utterance);
-  }, 50);
+  audio.onerror = () => {
+    tryWebSpeech();
+  };
+
+  audio.play().catch((err) => {
+    console.warn("Audio play catch, fallback to WebSpeech", err);
+    tryWebSpeech();
+  });
 }
 
 async function startMicMeter(stream) {
