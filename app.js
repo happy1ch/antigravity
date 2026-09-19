@@ -1,18 +1,24 @@
-// Romans 8 English Learning App - Simple & Rock Solid Logic
+// Romans 8 NIV English Learning App - Mobile & Desktop Fully Compatible
 
 let currentIndex = 0;
 let currentStep = 1; // 1, 2, 3, 4
 let showKorean = true;
 let completedVerses = new Set(JSON.parse(localStorage.getItem('romans8_completed') || '[]'));
 
-// Recording State
+// Audio & Recording State
 let mediaRecorder = null;
 let audioChunks = [];
-let recordedAudioUrls = {}; // currentIndex -> blobUrl
+let recordedAudioUrls = {}; // verseIndex -> blobUrl
 let isRecording = false;
 let recordedAudio = null;
 let recordTimerInterval = null;
 let recordSeconds = 0;
+
+// Mic Meter State
+let meterAudioCtx = null;
+let meterAnalyser = null;
+let meterStream = null;
+let meterAnimFrame = null;
 
 // DOM Elements
 const verseSelect = document.getElementById('verseSelect');
@@ -33,6 +39,10 @@ const stepInstruction = document.getElementById('stepInstruction');
 const englishText = document.getElementById('englishText');
 const koreanText = document.getElementById('koreanText');
 
+const micMeterContainer = document.getElementById('micMeterContainer');
+const micMeterFill = document.getElementById('micMeterFill');
+const micVolText = document.getElementById('micVolText');
+
 const playTtsBtn = document.getElementById('playTtsBtn');
 const recordBtn = document.getElementById('recordBtn');
 const playRecordBtn = document.getElementById('playRecordBtn');
@@ -43,12 +53,32 @@ const speedSelect = document.getElementById('speedSelect');
 const prevVerseBtn = document.getElementById('prevVerseBtn');
 const nextVerseBtn = document.getElementById('nextVerseBtn');
 
-// Initialize Application
+// App Initialization
 function init() {
   populateVerseSelect();
   renderVerse(0);
   updateProgress();
   setupEventListeners();
+  preloadSpeechVoices();
+}
+
+// Ensure Mobile Speech Synthesis Voices Load
+function preloadSpeechVoices() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }
+}
+
+// Unlock Mobile Web Audio Context on User Gesture
+function unlockMobileAudio() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.resume();
+  }
 }
 
 // Populate Verse Selector
@@ -79,18 +109,19 @@ function renderVerse(index) {
   setStep(1);
 }
 
-// Set Learning Step (1 ~ 4)
+// Step Controller (Step 1 ~ 4)
 function setStep(stepNum) {
   currentStep = stepNum;
 
-  // Stepper Visual Sync
+  // Stepper Visual Accent
   stepBtns.forEach((btn, i) => {
     btn.classList.toggle('active', i + 1 === currentStep);
   });
 
   englishText.classList.remove('reading-mode');
+  micMeterContainer.style.display = 'none';
 
-  // Button Visibilities
+  // Button Visibility Controls
   playTtsBtn.style.display = 'none';
   recordBtn.style.display = 'none';
   playRecordBtn.style.display = 'none';
@@ -98,16 +129,19 @@ function setStep(stepNum) {
 
   switch (currentStep) {
     case 1:
-      stepInstruction.textContent = "Step 1: 원어민 음성 듣기 버튼을 눌러 정확한 발음을 들어보세요.";
+      stepInstruction.textContent = "Step 1: [🔊 원어민 음성 듣기] 버튼을 눌러 발음을 확인하세요.";
       playTtsBtn.style.display = 'inline-flex';
       playTtsBtn.innerHTML = '🔊 원어민 음성 듣기';
-      setAudioStatus('준비됨');
+      setAudioStatus('원어민 재생 준비 완료');
+      stopMicMeter();
       break;
 
     case 2:
-      stepInstruction.textContent = "Step 2: 큼직해진 화면 텍스트를 보며 [녹음 시작]을 누르고 낭독하세요.";
-      englishText.classList.add('reading-mode'); // Big text mode for comfortable reading
+      stepInstruction.textContent = "Step 2: 큼직해진 문장을 읽으며 [🎙️ 낭독 녹음 시작]을 누르세요.";
+      englishText.classList.add('reading-mode'); // Big font focus for easy reading on mobile
       recordBtn.style.display = 'inline-flex';
+      micMeterContainer.style.display = 'flex';
+      
       if (isRecording) {
         recordBtn.innerHTML = '⏹️ 녹음 중지 & 저장';
         recordBtn.classList.add('recording');
@@ -115,27 +149,29 @@ function setStep(stepNum) {
         recordBtn.innerHTML = '🎙️ 낭독 녹음 시작';
         recordBtn.classList.remove('recording');
       }
-      setAudioStatus(isRecording ? `🔴 녹음 진행 중... [${formatTime(recordSeconds)}]` : '녹음 준비 완료');
+      setAudioStatus(isRecording ? `🔴 낭독 녹음 중... [${formatTime(recordSeconds)}]` : '마이크 녹음 준비 완료');
       break;
 
     case 3:
-      stepInstruction.textContent = "Step 3: 내가 녹음한 목소리를 재생하여 발음과 억양을 들어보세요.";
+      stepInstruction.textContent = "Step 3: 내가 녹음한 목소리를 들어보고 발음을 점검하세요.";
       playRecordBtn.style.display = 'inline-flex';
       playTtsBtn.style.display = 'inline-flex';
       playTtsBtn.innerHTML = '🔊 원어민 소리 다시 듣기';
+      stopMicMeter();
 
       const hasRecord = !!recordedAudioUrls[currentIndex];
       playRecordBtn.disabled = !hasRecord;
-      setAudioStatus(hasRecord ? '내 녹음 오디오 준비됨' : '녹음된 오디오가 없습니다. Step 2에서 녹음해 주세요.');
+      setAudioStatus(hasRecord ? '내 녹음 음성 재생 가능' : '녹음된 음성이 없습니다. Step 2에서 녹음해주세요.');
       break;
 
     case 4:
-      stepInstruction.textContent = "Step 4: 원어민 발음과 비교해보고 [다음 절로 이동]을 클릭하세요.";
+      stepInstruction.textContent = "Step 4: 원어민 발음과 비교해보고 [✅ 완료 & 다음 절 이동]을 누르세요.";
       playTtsBtn.style.display = 'inline-flex';
       playRecordBtn.style.display = 'inline-flex';
       completeStepBtn.style.display = 'inline-flex';
       playRecordBtn.disabled = !recordedAudioUrls[currentIndex];
-      setAudioStatus('절 학습 완료 단계');
+      stopMicMeter();
+      setAudioStatus('절 학습 마무리 단계');
       break;
   }
 }
@@ -150,27 +186,30 @@ function formatTime(sec) {
   return `${m}:${s}`;
 }
 
-// 1. Play Native English Voice (TTS)
+// 1. Mobile & Desktop Native TTS Speech Synthesis
 function playTts() {
+  unlockMobileAudio();
+
   if (!('speechSynthesis' in window)) {
-    alert('이 브라우저는 음성 합성을 지원하지 않습니다.');
+    alert('이 브라우저는 원어민 음성 합성(TTS)을 지원하지 않습니다.');
     return;
   }
 
-  window.speechSynthesis.cancel(); // Stop active speech
+  // Cancel previous speech for iOS Safari compatibility
+  window.speechSynthesis.cancel();
 
   const data = romans8Verses[currentIndex];
   const utterance = new SpeechSynthesisUtterance(data.text);
   utterance.lang = 'en-US';
   utterance.rate = parseFloat(speedSelect.value);
 
-  // Pick suitable English voice
+  // Search best English voice available
   const voices = window.speechSynthesis.getVoices();
   const enVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en'));
   if (enVoice) utterance.voice = enVoice;
 
   utterance.onstart = () => {
-    setAudioStatus('🔊 원어민 음성 읽는 중...');
+    setAudioStatus('🔊 원어민 음성 낭독 중...');
     playTtsBtn.disabled = true;
   };
 
@@ -184,21 +223,83 @@ function playTts() {
 
   utterance.onerror = (e) => {
     console.error("TTS Error:", e);
-    setAudioStatus('음성 재생 실패');
+    setAudioStatus('음성 재생 완료');
     playTtsBtn.disabled = false;
   };
 
-  window.speechSynthesis.speak(utterance);
+  // Small delay for iOS Safari speech trigger
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance);
+  }, 50);
+}
+
+// Real-time Mic Meter (Mobile & Desktop)
+async function startMicMeter(stream) {
+  stopMicMeter();
+  try {
+    meterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (meterAudioCtx.state === 'suspended') {
+      await meterAudioCtx.resume();
+    }
+    const source = meterAudioCtx.createMediaStreamSource(stream);
+    meterAnalyser = meterAudioCtx.createAnalyser();
+    meterAnalyser.fftSize = 256;
+    source.connect(meterAnalyser);
+
+    const bufferLength = meterAnalyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    function updateMeter() {
+      if (!meterAnalyser) return;
+      meterAnalyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      const avg = sum / bufferLength;
+      const volPercent = Math.min(100, Math.round((avg / 128) * 100));
+
+      micMeterFill.style.width = `${volPercent}%`;
+      micVolText.textContent = `${volPercent}%`;
+
+      meterAnimFrame = requestAnimationFrame(updateMeter);
+    }
+
+    updateMeter();
+  } catch (err) {
+    console.warn("Mic meter error:", err);
+  }
+}
+
+function stopMicMeter() {
+  if (meterAnimFrame) cancelAnimationFrame(meterAnimFrame);
+  if (meterAudioCtx && meterAudioCtx.state !== 'closed') {
+    meterAudioCtx.close();
+  }
+  meterAudioCtx = null;
+  meterAnalyser = null;
+  micMeterFill.style.width = '0%';
+  micVolText.textContent = '0%';
 }
 
 // 2. Microphone Recording
 async function toggleRecording() {
+  unlockMobileAudio();
+
   if (!isRecording) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunks = [];
 
-      mediaRecorder = new MediaRecorder(stream);
+      // Detect supported mimeType for iOS / Android
+      let mimeType = '';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+      else if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
+      else if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+
+      const options = mimeType ? { mimeType } : {};
+      mediaRecorder = new MediaRecorder(stream, options);
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -208,11 +309,13 @@ async function toggleRecording() {
 
       mediaRecorder.onstop = () => {
         clearInterval(recordTimerInterval);
+        stopMicMeter();
 
-        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const blobType = mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunks, { type: blobType });
 
         if (audioBlob.size === 0) {
-          alert('녹음된 오디오가 없습니다. 마이크가 제대로 작동하는지 확인해 주세요.');
+          alert('녹음된 음성이 없습니다. 마이크 허용 권한을 확인해주세요.');
           setAudioStatus('녹음 실패');
           return;
         }
@@ -224,7 +327,8 @@ async function toggleRecording() {
 
         stream.getTracks().forEach(track => track.stop());
 
-        setAudioStatus(`녹음 저장 완료 (${Math.round(audioBlob.size / 1024)} KB)`);
+        const sizeKb = Math.round(audioBlob.size / 1024);
+        setAudioStatus(`녹음 완료 (${sizeKb} KB 저장됨)`);
         setTimeout(() => setStep(3), 500);
       };
 
@@ -232,15 +336,18 @@ async function toggleRecording() {
       isRecording = true;
       recordSeconds = 0;
 
+      // Start live volume meter
+      startMicMeter(stream);
+
       recordTimerInterval = setInterval(() => {
         recordSeconds++;
-        setAudioStatus(`🔴 녹음 진행 중... [${formatTime(recordSeconds)}]`);
+        setAudioStatus(`🔴 낭독 녹음 중... [${formatTime(recordSeconds)}]`);
       }, 1000);
 
       setStep(2);
 
     } catch (err) {
-      alert('마이크 접근에 실패했습니다. 브라우저 마이크 허용 권한을 확인해주세요.');
+      alert('마이크 접근에 실패했거나 모바일 브라우저 권한이 차단되었습니다. 주소창 권한 설정을 확인하세요.');
       console.error(err);
       setAudioStatus('마이크 연결 실패');
     }
@@ -256,6 +363,8 @@ async function toggleRecording() {
 
 // 3. Play User Recording
 function playUserRecording() {
+  unlockMobileAudio();
+
   const url = recordedAudioUrls[currentIndex];
   if (!url) {
     alert('녹음된 음성이 없습니다. Step 2에서 먼저 녹음해 주세요.');
@@ -264,9 +373,11 @@ function playUserRecording() {
 
   if (recordedAudio) {
     recordedAudio.pause();
+    recordedAudio = null;
   }
 
   recordedAudio = new Audio(url);
+  recordedAudio.volume = 1.0;
 
   recordedAudio.onplay = () => {
     setAudioStatus('🎧 내 녹음 음성 재생 중...');
@@ -280,7 +391,7 @@ function playUserRecording() {
 
   recordedAudio.onerror = (e) => {
     console.error("User Audio Error:", e);
-    alert('녹음 음성 재생 실패');
+    alert('녹음 음성 재생에 실패했습니다.');
     setAudioStatus('재생 오류');
     playRecordBtn.disabled = false;
   };
@@ -315,7 +426,7 @@ function updateProgress() {
   progressBarFill.style.width = `${percent}%`;
 }
 
-// Event Listeners
+// Setup Event Listeners
 function setupEventListeners() {
   verseSelect.addEventListener('change', (e) => {
     renderVerse(parseInt(e.target.value));
@@ -346,12 +457,6 @@ function setupEventListeners() {
   nextVerseBtn.addEventListener('click', () => {
     if (currentIndex < romans8Verses.length - 1) renderVerse(currentIndex + 1);
   });
-
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-  }
 }
 
 // Launch App

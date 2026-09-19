@@ -9,7 +9,7 @@
 <body>
 
   <div class="app-container">
-    <!-- Top Header -->
+    <!-- Header -->
     <header>
       <div class="header-top">
         <div class="brand-title">
@@ -26,8 +26,8 @@
 
       <div class="progress-container">
         <div class="progress-info">
-          <span>전체 진행도 (Progress)</span>
-          <span id="progressPercent">0% (0 / 39절)</span>
+          <span>전체 학습 진행도</span>
+          <span id="progressPercent">0% (0 / 39절 완료)</span>
         </div>
         <div class="progress-bar-bg">
           <div id="progressBarFill" class="progress-bar-fill"></div>
@@ -62,11 +62,11 @@
           <span id="verseTitle">Verse 1</span>
         </div>
         <div class="step-instruction" id="stepInstruction">
-          Step 1: 원어민 음성 듣기 버튼을 눌러 정확한 발음을 들어보세요.
+          Step 1: [🔊 원어민 음성 듣기] 버튼을 눌러 발음을 확인하세요.
         </div>
       </div>
 
-      <!-- Text Display Box (Step 2에서 큼직하게 디스플레이) -->
+      <!-- Verse Display Box -->
       <div class="text-display-box">
         <div class="english-text" id="englishText">
           Loading verse...
@@ -76,7 +76,16 @@
         </div>
       </div>
 
-      <!-- Main Action Buttons Control Panel -->
+      <!-- Microphone Meter (Showing during Step 2 / Recording) -->
+      <div id="micMeterContainer" class="mic-meter-container" style="display: none;">
+        <span class="mic-icon">🎤</span>
+        <div class="meter-bar-bg">
+          <div id="micMeterFill" class="meter-bar-fill"></div>
+        </div>
+        <span id="micVolText" class="vol-text">0%</span>
+      </div>
+
+      <!-- Action Controls -->
       <div class="control-panel">
         <div class="action-buttons">
           <!-- Step 1 & 4: TTS Play -->
@@ -94,9 +103,9 @@
             ▶️ 내 녹음 듣기
           </button>
 
-          <!-- Step 4: Complete & Next -->
-          <button id="completeStepBtn" class="btn btn-primary" style="display: none;">
-            ✅ 다음 절로 이동
+          <!-- Step 4: Complete & Move Next -->
+          <button id="completeStepBtn" class="btn btn-success" style="display: none;">
+            ✅ 학습 완료 & 다음 절 이동
           </button>
         </div>
 
@@ -115,7 +124,7 @@
       </div>
     </main>
 
-    <!-- Footer Navigation -->
+    <!-- Footer Nav -->
     <footer class="nav-footer">
       <button id="prevVerseBtn" class="nav-btn" disabled>◀ 이전 절</button>
       <button id="nextVerseBtn" class="nav-btn">다음 절 ▶</button>
