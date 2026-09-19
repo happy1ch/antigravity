@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로마서 8장 영어 낭독 & 녹음 학습 (Romans 8 NIV)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="header-top">
+        <div class="brand-title">
+          <h1>Romans 8 NIV</h1>
+          <span class="badge">NIV English Study</span>
+        </div>
+        <div class="controls-group">
+          <select id="verseSelect" class="verse-selector" title="절 선택"></select>
+          <button id="toggleKorBtn" class="toggle-btn" title="한글 번역 토글">
+            🌐 한글 번역 <span id="korStatusText">ON</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-info">
+          <span>전체 학습 진행도</span>
+          <span id="progressPercent">0% (0 / 39절 완료)</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progressBarFill" class="progress-bar-fill"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stepper Navigation -->
+    <nav class="stepper-nav">
+      <button class="step-item active" id="step1Btn">
+        <span class="step-num">1</span>
+        <span class="step-label">원어민 듣기</span>
+      </button>
+      <button class="step-item" id="step2Btn">
+        <span class="step-num">2</span>
+        <span class="step-label">읽고 녹음</span>
+      </button>
+      <button class="step-item" id="step3Btn">
+        <span class="step-num">3</span>
+        <span class="step-label">내 목소리</span>
+      </button>
+      <button class="step-item" id="step4Btn">
+        <span class="step-num">4</span>
+        <span class="step-label">비교 & 완료</span>
+      </button>
+    </nav>
+
+    <!-- Main Learning Card -->
+    <main class="main-card">
+      <div class="verse-header">
+        <div class="verse-tag">
+          <span id="verseTitle">Verse 1</span>
+        </div>
+        <div class="step-instruction" id="stepInstruction">
+          Step 1: [🔊 원어민 음성 듣기] 버튼을 눌러 발음을 확인하세요.
+        </div>
+      </div>
+
+      <!-- Verse Display Box -->
+      <div class="text-display-box">
+        <div class="english-text" id="englishText">
+          Loading verse...
+        </div>
+        <div class="korean-text" id="koreanText">
+          Loading translation...
+        </div>
+      </div>
+
+      <!-- Microphone Meter -->
+      <div id="micMeterContainer" class="mic-meter-container" style="display: none;">
+        <span class="mic-icon">🎤</span>
+        <div class="meter-bar-bg">
+          <div id="micMeterFill" class="meter-bar-fill"></div>
+        </div>
+        <span id="micVolText" class="vol-text">0%</span>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="control-panel">
+        <div class="action-buttons">
+          <button id="playTtsBtn" class="btn btn-primary">
+            🔊 원어민 음성 듣기
+          </button>
+          <button id="recordBtn" class="btn btn-record" style="display: none;">
+            🎙️ 낭독 녹음 시작
+          </button>
+          <button id="playRecordBtn" class="btn btn-secondary" style="display: none;" disabled>
+            ▶️ 내 녹음 듣기
+          </button>
+          <button id="completeStepBtn" class="btn btn-success" style="display: none;">
+            ✅ 학습 완료 & 다음 절 이동
+          </button>
+        </div>
+
+        <div class="audio-status" id="audioStatus">
+          준비됨
+        </div>
+
+        <div class="speech-settings">
+          <label for="speedSelect">낭독 속도:</label>
+          <select id="speedSelect" class="speed-select">
+            <option value="0.8">0.8x (천천히)</option>
+            <option value="1.0" selected>1.0x (보통)</option>
+            <option value="1.2">1.2x (빠르게)</option>
+          </select>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer Nav -->
+    <footer class="nav-footer">
+      <button id="prevVerseBtn" class="nav-btn" disabled>◀ 이전 절</button>
+      <button id="nextVerseBtn" class="nav-btn">다음 절 ▶</button>
+    </footer>
+  </div>
+
+  <script src="romans8_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
